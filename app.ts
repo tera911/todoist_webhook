@@ -61,12 +61,13 @@ async function checkUnCompleteTaskList() {
     });
     // console.log(users);
     const now = moment();
-    const groupBy = _.groupBy(res.data.items.filter(item => moment(item.due_date_utc).unix() < now.unix() && item.checked === 0), (item) => item.assigned_by_uid)
+    const groupBy = _.groupBy(res.data.items.filter(item => moment(item.due_date_utc).unix() < now.unix() && item.checked === 0), (item) => item.responsible_uid)
     _.each(groupBy, (items: TodoItem[], userId) => {
       const uid = parseInt(userId, 0);
-      if (users.has(uid)) {
+      const filteredItem = items.filter((item) => projects.findIndex(p => p.id == item.project_id) != -1);
+      if (users.has(uid) && filteredItem.length) {
         const u: TodoUser = users.get(uid);
-        sendMessage(u.full_name + "さんは、" + items.length + "件 期限切れタスクがあります。");
+        sendMessage(u.full_name + "さんは、" + filteredItem.length + "件 期限切れタスクがあります。");
       } else {
         // console.log(uid);
       }
