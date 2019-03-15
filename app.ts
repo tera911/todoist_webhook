@@ -113,19 +113,22 @@ server.route({
     } else if (req.event_name.match(/^project\:/)) {
       syncProject();
     } else if (req.event_name == 'item:updated') { // タスクが追加された時にprojectが移動していたら通知を行う
-      const e = (req as TodoItemUpdateEvent);
-      const event_data = e.event_data;
-      if (!poolItems.has(e.user_id) || event_data.sync_id == null) {
-        poolItems.set(e.user_id, {id: event_data.id, project_id: event_data.project_id});
+      const todoItemUpdateRequest = (req as TodoItemUpdateEvent);
+      const todoItemUpdateEventData = todoItemUpdateRequest.event_data;
+
+
+      if (!poolItems.has(todoItemUpdateEventData.id)) {
+        poolItems.set(todoItemUpdateEventData.id, todoItemUpdateEventData.sync_id);
       } else {
-        const d: PoolTask = poolItems.get(e.user_id);
-        if (event_data.id === d.id && event_data.project_id !== d.project_id) {
+        const sync_id = poolItems.get(todoItemUpdateEventData.id);
+        if(sync_id != todoItemUpdateEventData.sync_id && todoItemUpdateEventData.sync_id != null){
           const p = projects.find(e => e.id == event_data.project_id);
           if (p) {
             sendMessage(`${name}が、${p.name}に「<${event.url}|${event.content}>」を追加しました。`);
           }
+        }else{
+          poolItems.set(todoItemUpdateEventData.id, todoItemUpdateEventData.sync_id);
         }
-        poolItems.delete(e.user_id);
       }
 
     }
