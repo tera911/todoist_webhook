@@ -122,7 +122,7 @@ server.route({
       } else {
         const sync_id = poolItems.get(todoItemUpdateEventData.id);
         if(sync_id != todoItemUpdateEventData.sync_id && todoItemUpdateEventData.sync_id != null){
-          const p = projects.find(e => e.id == event_data.project_id);
+          const p = projects.find(e => e.id == todoItemUpdateEventData.project_id);
           if (p) {
             sendMessage(`${name}が、${p.name}に「<${event.url}|${event.content}>」を追加しました。`);
           }
