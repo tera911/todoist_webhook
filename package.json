@@ -14,7 +14,8 @@
     "lodash": "^4.17.11",
     "moment": "^2.24.0",
     "todoist-api-ts": "^1.0.3",
-    "typescript": "^3.3.3"
+    "typescript": "^3.3.3",
+    "uuid": "^8.3.0"
   },
   "devDependencies": {},
   "scripts": {
