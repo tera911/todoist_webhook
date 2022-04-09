@@ -12,7 +12,7 @@
     "dotenv": "^6.2.0",
     "hapi": "^18.0.0",
     "lodash": "^4.17.11",
-    "moment": "^2.24.0",
+    "moment": "^2.29.2",
     "todoist-api-ts": "^1.0.3",
     "typescript": "^3.3.3",
     "uuid": "^8.3.0"
