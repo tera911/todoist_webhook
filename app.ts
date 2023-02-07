@@ -3,19 +3,21 @@ import * as _ from 'lodash';
 import {WebClient} from "@slack/client";
 import * as process from "process";
 import axios from 'axios';
-
+import * as fs from 'fs';
 const {v4: uuidv4} = require('uuid');
-
 const Hapi = require('hapi');
 const server = new Hapi.Server({
     host: '0.0.0.0',
-    port: 18124
+    port: 18124,
+    tls: {
+        key: fs.readFileSync('/etc/letsencrypt/live/tera911.com/privkey.pem'),
+        cert: fs.readFileSync('/etc/letsencrypt/live/tera911.com/cert.pem')
+    }
 });
 require('dotenv').config();
 const {CronJob} = require('cron');
 
 if (process.env.REPORT) {
-
     new CronJob('0 0 10 * * *', () => {
         checkUnCompleteTaskList().then(() => {
         });
