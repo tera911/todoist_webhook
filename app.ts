@@ -3,16 +3,11 @@ import * as _ from 'lodash';
 import {WebClient} from "@slack/client";
 import * as process from "process";
 import axios from 'axios';
-import * as fs from 'fs';
 const {v4: uuidv4} = require('uuid');
 const Hapi = require('hapi');
 const server = new Hapi.Server({
     host: '0.0.0.0',
-    port: 18124,
-    tls: {
-        key: fs.readFileSync('/etc/letsencrypt/live/tera911.com/privkey.pem'),
-        cert: fs.readFileSync('/etc/letsencrypt/live/tera911.com/cert.pem')
-    }
+    port: 18124
 });
 require('dotenv').config();
 const {CronJob} = require('cron');
