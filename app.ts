@@ -1,5 +1,8 @@
 import * as moment from "moment";
 import * as _ from 'lodash';
+import {WebClient} from "@slack/client";
+import * as process from "process";
+import axios from 'axios';
 
 const {v4: uuidv4} = require('uuid');
 
@@ -11,47 +14,44 @@ const server = new Hapi.Server({
 require('dotenv').config();
 const {CronJob} = require('cron');
 
-new CronJob('0 0 10 * * *', () => {
-    checkUnCompleteTaskList().then(() => {
-    });
-}, null, true, 'Asia/Tokyo');
+if (process.env.REPORT) {
 
-const axios = require('axios');
-const {WebClient} = require('@slack/client');
+    new CronJob('0 0 10 * * *', () => {
+        checkUnCompleteTaskList().then(() => {
+        });
+    }, null, true, 'Asia/Tokyo');
+}
 
 const slackToken = process.env.SLACK_TOKEN;
 const todoToken = (process.env.TODOIST_TOKEN as string);
 const toChannel = process.env.SLACK_TO_CHANNEL;
-const web = new WebClient(slackToken);
+const web: WebClient = new WebClient(slackToken);
+const watch_users_ids: Array<number | string> = (process.env.WATCH_USER_IDS as string).split(",")
+const watch_project_ids: Array<number | string> = (process.env.WATCH_PROJECT_IDS as string).split(",")
 
+axios.defaults.headers.common = {'Authorization': `Bearer ${todoToken}`};
 
 //Projectリストを取得する
-
 let projects: any[] = [];
 const poolItems = new Map();
 
 async function syncProject() {
     if (todoToken) {
-        const res: { data: { projects: TodoProject[] } } = await axios.get('https://api.todoist.com/sync/v8/sync', {
+        const res: { data: { projects: TodoProject[] } } = await axios.get('https://api.todoist.com/sync/v9/sync', {
             params: {
-                token: todoToken,
                 resource_types: "[\"projects\"]"
             }
         });
-        projects = res.data.projects.filter((e) => {
-            return e.shared;
-        });
-        // console.log(projects);
-        console.log(new Date(), "fetch projects");
+        projects = res.data.projects.filter(p => p.shared).filter(p => watch_project_ids.includes(p.id));
+        console.log(new Date(), "fetch projects", projects);
     }
 }
 
 async function updateItem(args: any) {
     if (todoToken) {
         const uuid = uuidv4();
-        const res: { data: { sync_status: { [key: string]: string } } } = await axios.get('https://api.todoist.com/sync/v8/sync', {
+        const res: { data: { sync_status: { [key: string]: string } } } = await axios.get('https://api.todoist.com/sync/v9/sync', {
             params: {
-                token: todoToken,
                 commands: JSON.stringify([{type: "item_update", uuid, args}])
             }
         });
@@ -61,20 +61,18 @@ async function updateItem(args: any) {
 
 async function checkUnCompleteTaskList() {
     if (todoToken) {
-        const res: { data: { collaborators: TodoUser[], items: TodoItem[] } } = await axios.get('https://api.todoist.com/sync/v8/sync', {
+        const res: { data: { collaborators: TodoUser[], items: TodoItem[] } } = await axios.get('https://api.todoist.com/sync/v9/sync', {
             params: {
-                token: todoToken,
                 resource_types: "[\"items\", \"collaborators\"]"
             }
         });
 
         const users = new Map();
-        res.data.collaborators.forEach(user => {
+        res.data.collaborators.filter(user => watch_users_ids.includes(user.id)).forEach(user => {
             if (!users.has(user.id)) {
                 users.set(user.id, user);
             }
         });
-        // console.log(users);
         const now = moment();
         const groupBy = _.groupBy(res.data.items.filter(item => moment(item.due_date_utc).unix() < now.unix() && item.checked === 0), (item) => item.responsible_uid)
         _.each(groupBy, (items: TodoItem[], userId) => {
@@ -91,8 +89,9 @@ async function checkUnCompleteTaskList() {
 }
 
 function sendMessage(msg: any) {
+    // @ts-ignore
     web.chat.postMessage({
-        channel: toChannel,
+        channel: toChannel!,
         attachments: [{text: msg}],
         as_user: true,
         icon_emoji: ':todoist:',
@@ -105,7 +104,7 @@ function sendMessage(msg: any) {
 server.route({
     method: 'POST',
     path: '/',
-    handler: async(request: any, h: any) => {
+    handler: async (request: any, h: any) => {
         // console.log(request.payload);
         // console.log('-------\n');
         const req = request.payload;
@@ -119,14 +118,14 @@ server.route({
             const p = projects.find(e => e.id == event.project_id);
             if (p) {
                 sendMessage(`${name}が、${p.name}に「<${event.url}|${event.content}>」を追加しました。`);
-                if (event.user_id == "14421183" && event.responsible_uid == null) {
+                if (watch_users_ids.includes(event.user_id) && event.responsible_uid == null) {
                     await updateItem({id: event.id, responsible_uid: event.user_id});
                 }
             }
         } else if (req.event_name == 'item:completed') {
             const p = projects.find(e => e.id == event.project_id);
             if (p) {
-                sendMessage(`${name}が、` + p.name + " の「" + event.content + "」を完了しました！")
+                // sendMessage(`${name}が、` + p.name + " の「" + event.content + "」を完了しました！")
             }
         } else if (req.event_name.match(/^project\:/)) {
             await syncProject();
