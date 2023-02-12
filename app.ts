@@ -115,8 +115,8 @@ server.route({
             const p = projects.find(e => e.id == event.project_id);
             if (p) {
                 sendMessage(`${name}が、${p.name}に「<${event.url}|${event.content}>」を追加しました。`);
-                if (watch_users_ids.includes(event.user_id) && event.responsible_uid == null) {
-                    await updateItem({id: event.id, responsible_uid: event.user_id});
+                if (watch_users_ids.includes(event.added_by_uid) && event.responsible_uid == null) {
+                    await updateItem({id: event.id, responsible_uid: event.added_by_uid});
                 }
             }
         } else if (req.event_name == 'item:completed') {
