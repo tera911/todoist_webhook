@@ -3,12 +3,10 @@ import * as _ from 'lodash';
 import {WebClient} from "@slack/web-api";
 import * as process from "process";
 import axios from 'axios';
+
 const {v4: uuidv4} = require('uuid');
-const Hapi = require('hapi');
-const server = new Hapi.Server({
-    host: '0.0.0.0',
-    port: 18124
-});
+const express = require("express");
+const app = express();
 require('dotenv').config();
 const {CronJob} = require('cron');
 
@@ -96,67 +94,67 @@ function sendMessage(msg: any) {
     }).then((res: any) => {
         console.log('Message sent: ', res.ts);
     }).catch(console.error);
-};
+}
 
-server.route({
-    method: 'POST',
-    path: '/',
-    handler: async (request: any, h: any) => {
-        // console.log(request.payload);
-        // console.log('-------\n');
-        const req = request.payload;
-        const event = req.event_data;
-        let name = req.initiator.full_name;
-        if (name.length > 8) {
-            name = name.substr(0, 8);
-        }
-        //追加処理
-        if (req.event_name == 'item:added') {
-            const p = projects.find(e => e.id == event.project_id);
-            if (p) {
-                sendMessage(`${name}が、${p.name}に「<${event.url}|${event.content}>」を追加しました。`);
-                if (watch_users_ids.includes(event.added_by_uid) && event.responsible_uid == null) {
-                    await updateItem({id: event.id, responsible_uid: event.added_by_uid});
-                }
-            }
-        } else if (req.event_name == 'item:completed') {
-            const p = projects.find(e => e.id == event.project_id);
-            if (p) {
-                // sendMessage(`${name}が、` + p.name + " の「" + event.content + "」を完了しました！")
-            }
-        } else if (req.event_name.match(/^project\:/)) {
-            await syncProject();
-        } else if (req.event_name == 'item:updated') { // タスクが追加された時にprojectが移動していたら通知を行う
-            const todoItemUpdateRequest = (req as TodoItemUpdateEvent);
-            const todoItemUpdateEventData = todoItemUpdateRequest.event_data;
+app.get("/", (req: any, res: any) => {
+    res.json({ok: true});
+})
 
-
-            if (!poolItems.has(todoItemUpdateEventData.id)) {
-                poolItems.set(todoItemUpdateEventData.id, todoItemUpdateEventData.sync_id);
-            } else {
-                const sync_id = poolItems.get(todoItemUpdateEventData.id);
-                if (sync_id != todoItemUpdateEventData.sync_id && todoItemUpdateEventData.sync_id != null) {
-                    const p = projects.find(e => e.id == todoItemUpdateEventData.project_id);
-                    if (p) {
-                        sendMessage(`${name}が、${p.name}に「<${event.url}|${event.content}>」を移動しました。`);
-                    }
-                } else {
-                    poolItems.set(todoItemUpdateEventData.id, todoItemUpdateEventData.sync_id);
-                }
-            }
-
-        }
-
-        return h.response().code(204);
+app.post('/', async (request: any, res: any) => {
+    console.log(request.payload);
+    console.log('-------\n');
+    const req = request.payload;
+    const event = req.event_data;
+    let name = req.initiator.full_name;
+    if (name.length > 8) {
+        name = name.substr(0, 8);
     }
+    //追加処理
+    if (req.event_name == 'item:added') {
+        const p = projects.find(e => e.id == event.project_id);
+        if (p) {
+            sendMessage(`${name}が、${p.name}に「<${event.url}|${event.content}>」を追加しました。`);
+            if (watch_users_ids.includes(event.added_by_uid) && event.responsible_uid == null) {
+                await updateItem({id: event.id, responsible_uid: event.added_by_uid});
+            }
+        }
+    } else if (req.event_name == 'item:completed') {
+        const p = projects.find(e => e.id == event.project_id);
+        if (p) {
+            // sendMessage(`${name}が、` + p.name + " の「" + event.content + "」を完了しました！")
+        }
+    } else if (req.event_name.match(/^project\:/)) {
+        await syncProject();
+    } else if (req.event_name == 'item:updated') { // タスクが追加された時にprojectが移動していたら通知を行う
+        const todoItemUpdateRequest = (req as TodoItemUpdateEvent);
+        const todoItemUpdateEventData = todoItemUpdateRequest.event_data;
+
+
+        if (!poolItems.has(todoItemUpdateEventData.id)) {
+            poolItems.set(todoItemUpdateEventData.id, todoItemUpdateEventData.sync_id);
+        } else {
+            const sync_id = poolItems.get(todoItemUpdateEventData.id);
+            if (sync_id != todoItemUpdateEventData.sync_id && todoItemUpdateEventData.sync_id != null) {
+                const p = projects.find(e => e.id == todoItemUpdateEventData.project_id);
+                if (p) {
+                    sendMessage(`${name}が、${p.name}に「<${event.url}|${event.content}>」を移動しました。`);
+                }
+            } else {
+                poolItems.set(todoItemUpdateEventData.id, todoItemUpdateEventData.sync_id);
+            }
+        }
+
+    }
+    return res.status(204);
 })
 
 // Start the server
 const start = async function () {
     try {
         await syncProject();
-        await server.start();
-
+        const server = app.listen(18124, () => {
+            console.log("Node.js is listening to PORT:" + server.address().port);
+        })
         // 定期的にpoolItemsを初期化する
         setInterval(() => {
             poolItems.clear();
@@ -165,8 +163,6 @@ const start = async function () {
         console.log(err);
         process.exit(1);
     }
-
-    console.log('Server running at:', server.info.uri);
 };
 
 const testFunc = async function () {
