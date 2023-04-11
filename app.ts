@@ -7,6 +7,7 @@ import axios from 'axios';
 const {v4: uuidv4} = require('uuid');
 const express = require("express");
 const app = express();
+app.use(express.json!())
 require('dotenv').config();
 const {CronJob} = require('cron');
 
@@ -102,9 +103,9 @@ app.get("/", (req: any, res: any) => {
 
 app.post('/', async (request: any, res: any) => {
     try {
-        console.log(request);
+        console.log(request.body);
         console.log('-------\n');
-        const req = request.payload;
+        const req = request.body;
         const event = req.event_data;
         let name = req.initiator.full_name;
         if (name.length > 8) {
