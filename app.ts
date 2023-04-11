@@ -101,49 +101,53 @@ app.get("/", (req: any, res: any) => {
 })
 
 app.post('/', async (request: any, res: any) => {
-    console.log(request.payload);
-    console.log('-------\n');
-    const req = request.payload;
-    const event = req.event_data;
-    let name = req.initiator.full_name;
-    if (name.length > 8) {
-        name = name.substr(0, 8);
-    }
-    //追加処理
-    if (req.event_name == 'item:added') {
-        const p = projects.find(e => e.id == event.project_id);
-        if (p) {
-            sendMessage(`${name}が、${p.name}に「<${event.url}|${event.content}>」を追加しました。`);
-            if (watch_users_ids.includes(event.added_by_uid) && event.responsible_uid == null) {
-                await updateItem({id: event.id, responsible_uid: event.added_by_uid});
-            }
+    try {
+        console.log(request);
+        console.log('-------\n');
+        const req = request.payload;
+        const event = req.event_data;
+        let name = req.initiator.full_name;
+        if (name.length > 8) {
+            name = name.substr(0, 8);
         }
-    } else if (req.event_name == 'item:completed') {
-        const p = projects.find(e => e.id == event.project_id);
-        if (p) {
-            // sendMessage(`${name}が、` + p.name + " の「" + event.content + "」を完了しました！")
-        }
-    } else if (req.event_name.match(/^project\:/)) {
-        await syncProject();
-    } else if (req.event_name == 'item:updated') { // タスクが追加された時にprojectが移動していたら通知を行う
-        const todoItemUpdateRequest = (req as TodoItemUpdateEvent);
-        const todoItemUpdateEventData = todoItemUpdateRequest.event_data;
-
-
-        if (!poolItems.has(todoItemUpdateEventData.id)) {
-            poolItems.set(todoItemUpdateEventData.id, todoItemUpdateEventData.sync_id);
-        } else {
-            const sync_id = poolItems.get(todoItemUpdateEventData.id);
-            if (sync_id != todoItemUpdateEventData.sync_id && todoItemUpdateEventData.sync_id != null) {
-                const p = projects.find(e => e.id == todoItemUpdateEventData.project_id);
-                if (p) {
-                    sendMessage(`${name}が、${p.name}に「<${event.url}|${event.content}>」を移動しました。`);
+        //追加処理
+        if (req.event_name == 'item:added') {
+            const p = projects.find(e => e.id == event.project_id);
+            if (p) {
+                sendMessage(`${name}が、${p.name}に「<${event.url}|${event.content}>」を追加しました。`);
+                if (watch_users_ids.includes(event.added_by_uid) && event.responsible_uid == null) {
+                    await updateItem({id: event.id, responsible_uid: event.added_by_uid});
                 }
-            } else {
-                poolItems.set(todoItemUpdateEventData.id, todoItemUpdateEventData.sync_id);
             }
-        }
+        } else if (req.event_name == 'item:completed') {
+            const p = projects.find(e => e.id == event.project_id);
+            if (p) {
+                // sendMessage(`${name}が、` + p.name + " の「" + event.content + "」を完了しました！")
+            }
+        } else if (req.event_name.match(/^project\:/)) {
+            await syncProject();
+        } else if (req.event_name == 'item:updated') { // タスクが追加された時にprojectが移動していたら通知を行う
+            const todoItemUpdateRequest = (req as TodoItemUpdateEvent);
+            const todoItemUpdateEventData = todoItemUpdateRequest.event_data;
 
+
+            if (!poolItems.has(todoItemUpdateEventData.id)) {
+                poolItems.set(todoItemUpdateEventData.id, todoItemUpdateEventData.sync_id);
+            } else {
+                const sync_id = poolItems.get(todoItemUpdateEventData.id);
+                if (sync_id != todoItemUpdateEventData.sync_id && todoItemUpdateEventData.sync_id != null) {
+                    const p = projects.find(e => e.id == todoItemUpdateEventData.project_id);
+                    if (p) {
+                        sendMessage(`${name}が、${p.name}に「<${event.url}|${event.content}>」を移動しました。`);
+                    }
+                } else {
+                    poolItems.set(todoItemUpdateEventData.id, todoItemUpdateEventData.sync_id);
+                }
+            }
+
+        }
+    } catch (err) {
+        console.log(err);
     }
     return res.status(204);
 })
