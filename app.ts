@@ -103,8 +103,8 @@ app.get("/", (req: any, res: any) => {
 
 app.post('/', async (request: any, res: any) => {
     try {
-        console.log(request.body);
-        console.log('-------\n');
+        // console.log(request.body);
+        // console.log('-------\n');
         const req = request.body;
         const event = req.event_data;
         let name = req.initiator.full_name;
