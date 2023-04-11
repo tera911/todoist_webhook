@@ -1,6 +1,6 @@
 import * as moment from "moment";
 import * as _ from 'lodash';
-import {WebClient} from "@slack/client";
+import {WebClient} from "@slack/web-api";
 import * as process from "process";
 import axios from 'axios';
 const {v4: uuidv4} = require('uuid');
